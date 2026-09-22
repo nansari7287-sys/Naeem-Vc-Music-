@@ -4,7 +4,7 @@
   <h1>🎵 ˹ 𝑫𝒓𝒂𝒌𝒐𝑿𝑵𝒂𝒆𝒆𝒎 ˼ 🎵</h1>
 
   <a href="https://github.com/themagmalord333-oss/MagmaMusic">
-    <img src="https://readme-typing-svg.herokuapp.com/?lines=ㅤ+𝚆𝙴𝙻𝙲𝙾𝙼𝙴+𝚃𝙾+𝙼𝙰𝙶𝙼𝙰+𝙼𝚄𝚂𝙸𝙲+𝚁𝙴𝙿𝙾+;ㅤ+𝚃𝙷𝙸𝚂+𝙸𝚂+𝙰+𝙰𝙳𝚅𝙰𝙽𝙲𝙴+𝙼𝚄𝚂𝙸𝙲+𝙱𝙾𝚃;𝙿𝙾𝚆𝙴𝚁𝙴𝙳+𝙱𝚈+☞+𝙼𝙰𝙶𝙼𝙰𝚡𝚁𝙸𝙲𝙷&center=true&width=500&size=16" width="100%">
+    <img src="https://readme-typing-svg.herokuapp.com/?lines=ㅤ+𝚆𝙴𝙻𝙲𝙾𝙼𝙴+𝚃𝙾+𝑵𝒂𝒆𝒆𝒎+𝑴𝒖𝒔𝒊𝒄+𝚁𝙴𝙿𝙾+;ㅤ+𝚃𝙷𝙸𝚂+𝙸𝚂+𝙰+𝙰𝙳𝚅𝙰𝙽𝙲𝙴+𝙼𝚄𝚂𝙸𝙲+𝙱𝙾𝚃;𝙿𝙾𝚆𝙴𝚁𝙴𝙳+𝙱𝚈+☞+𝙼𝙰𝙶𝙼𝙰𝚡𝚁𝙸𝙲𝙷&center=true&width=500&size=16" width="100%">
   </a>
   
   <br><br>
