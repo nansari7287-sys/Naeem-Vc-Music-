@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="https://i.ibb.co/rfb47Hkm/x.jpg" alt="MAGMA MUSIC" width="300">
+  <img src="https://i.ibb.co/rfb47Hkm/x.jpg" alt="𝑵𝒂𝒆𝒆𝒎 𝑴𝒖𝒔𝒊𝒄" width="300">
   
-  <h1>🎵 ˹ ᴍᴀɢᴍᴀ ᴍᴜꜱɪᴄ ˼ 🎵</h1>
+  <h1>🎵 ˹ 𝑫𝒓𝒂𝒌𝒐𝑿𝑵𝒂𝒆𝒆𝒎 ˼ 🎵</h1>
 
   <a href="https://github.com/themagmalord333-oss/MagmaMusic">
     <img src="https://readme-typing-svg.herokuapp.com/?lines=ㅤ+𝚆𝙴𝙻𝙲𝙾𝙼𝙴+𝚃𝙾+𝙼𝙰𝙶𝙼𝙰+𝙼𝚄𝚂𝙸𝙲+𝚁𝙴𝙿𝙾+;ㅤ+𝚃𝙷𝙸𝚂+𝙸𝚂+𝙰+𝙰𝙳𝚅𝙰𝙽𝙲𝙴+𝙼𝚄𝚂𝙸𝙲+𝙱𝙾𝚃;𝙿𝙾𝚆𝙴𝚁𝙴𝙳+𝙱𝚈+☞+𝙼𝙰𝙶𝙼𝙰𝚡𝚁𝙸𝙲𝙷&center=true&width=500&size=16" width="100%">
@@ -52,17 +52,17 @@ source venv/bin/activate
 <h3 align="center">「 𝗜𝗙 𝗔𝗡𝗬 𝗘𝗥𝗥𝗢𝗥 𝗧𝗛𝗘𝗡 𝗦𝗘𝗡𝗗 𝗦𝗦 𝗧𝗢 𝗗𝗠 」</h3>
 <div align="center">
 <a href="https://t.me/MAGMAxRICH">
-<img src="https://i.ibb.co/vCcXTPwY/x.jpg" alt="MAGMAxRICH Support" width="300">
+<img src="https://i.ibb.co/vCcXTPwY/x.jpg" alt="𝑫𝒓𝒂𝒌𝒐𝑿𝑵𝒂𝒆𝒆𝒎 Support" width="300">
 </a>
 </div>
- * **Telegram Channel**: MAGMAxRICH
- * **Support Group**: Magma Projects
+ * **Telegram Channel**: 𝑵𝒂𝒆𝒆𝒎 𝑴𝒖𝒔𝒊𝒄
+ * **Support Group**: 𝑵𝒂𝒆𝒆𝒎 Projects
 ## 📝 Notes
  * Make sure your bot is admin in both the group and logger group
  * The assistant account will auto-join groups when needed for playback
  * Keep your .env file secure and never share it publicly
  * Use a second ID for the assistant ID
 <div align="center">
-<h3>Made with ❤️ by MAGMAxRICH & ANYSNAP</h3>
+<h3>Made with ❤️ by 𝑫𝒓𝒂𝒌𝒐𝑿𝑵𝒂𝒆𝒆𝒎 & https://t.me/frexyyEra</h3>
 <b>© 2026 ˹ᴍᴀɢᴍᴀ ᴍᴜꜱɪᴄ˼. All rights reserved.</b>
 </div>
