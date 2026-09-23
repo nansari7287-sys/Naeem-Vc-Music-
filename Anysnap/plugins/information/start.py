@@ -19,144 +19,237 @@ from Anysnap import app, config, db, lang
 from Anysnap.helpers import buttons, utils
 
 
-@app.on_message(filters.command(["help"]) & filters.private & ~app.bl_users)
+# ==========================================================
+# HELP
+# ==========================================================
+
+@app.on_message(
+    filters.command("help")
+    & filters.private
+    & ~app.bl_users
+)
 @lang.language()
-async def _help(_, m: types.Message):
-    """Handle /help command in private chats - shows help menu with image."""
-    # Auto-delete command message
-    try:
-        await m.delete()
-    except Exception:
-        pass
+async def _help(_, message: types.Message):
+    """Show the help menu in private chat."""
 
-    try:
-        await m.reply_photo(
-            photo=config.START_IMG,  # Use same image as start command
-            caption=m.lang["help_menu"],
-            reply_markup=buttons.help_markup(m.lang),
-            quote=True,
-        )
-    except Exception:
-        # Fallback to text if photo fails
-        await m.reply_text(
-            text=m.lang["help_menu"],
-            reply_markup=buttons.help_markup(m.lang),
-            quote=True,
-        )
-
-
-@app.on_message(filters.command(["start"]))
-@lang.language()
-async def start(_, message: types.Message):
-    """
-    Handle /start command - welcome message for users.
-
-    - In private chat: Shows welcome message with inline buttons
-    - In group chat: Shows short welcome message
-    - Adds new users to database
-    - Sends log to logger group for new users
-    """
-    # Auto-delete command message in group chats
-    if message.chat.type != enums.ChatType.PRIVATE:
-        try:
-            await message.delete()
-        except Exception:
-            pass
-
-    # Skip if message from channel or anonymous admin
-    if not message.from_user:
-        return
-
-    # Check if user is blacklisted
-    if message.from_user.id in app.bl_users and message.from_user.id not in db.notified:
-        return await message.reply_text(message.lang["bl_user_notify"])
-
-    # If /start help, show help menu
-    if len(message.command) > 1 and message.command[1] == "help":
-        return await _help(_, message)
-
-    # Determine if chat is private or group
-    private = message.chat.type == enums.ChatType.PRIVATE
-
-    # Choose appropriate welcome message (Text loads from updated en.json)
-    _text = (
-        message.lang["start_pm"].format(message.from_user.first_name, config.BOT_NAME)
-        if private
-        else message.lang["start_gp"].format(config.BOT_NAME)
-    )
-
-    key = buttons.start_key(message.lang, private)
-    try:
-        await message.reply_photo(
-            photo=config.START_IMG,
-            caption=_text,
-            reply_markup=key,
-            quote=not private,
-        )
-    except errors.ChatSendPhotosForbidden:
-        # If photos are not allowed, send text only
-        await message.reply_text(
-            text=_text,
-            reply_markup=key,
-            quote=not private,
-        )
-
-    # For private chats, add user to database if new
-    if private:
-        if await db.is_user(message.from_user.id):
-            return  # User already exists, no need to add
-        # Log new user to logger group
-        await utils.send_log(message)
-        # Add user to database
-        return await db.add_user(message.from_user.id)
-
-
-@app.on_message(filters.command(["playmode", "settings"]) & filters.group & ~app.bl_users)
-@lang.language()
-async def settings(_, message: types.Message):
-    """
-    Handle /playmode or /settings command - show group settings.
-
-    Displays:
-    - Play mode (everyone or admin only)
-    - Current language
-    - Options to change settings
-    """
-    # Auto-delete command message
+    # Delete /help command
     try:
         await message.delete()
     except Exception:
         pass
 
-    admin_only = await db.get_play_mode(message.chat.id)  # Get play mode setting
-    _language = "en"
+    try:
+        await message.reply_photo(
+            photo=config.START_IMG,
+            caption=message.lang["help_menu"],
+            reply_markup=buttons.help_markup(message.lang),
+            quote=True,
+        )
+    except Exception:
+        # Fallback to text if photo cannot be sent
+        try:
+            await message.reply_text(
+                text=message.lang["help_menu"],
+                reply_markup=buttons.help_markup(message.lang),
+                quote=True,
+            )
+        except Exception:
+            pass
+
+
+# ==========================================================
+# START
+# ==========================================================
+
+@app.on_message(filters.command("start"))
+@lang.language()
+async def start(_, message: types.Message):
+    """Handle the /start command."""
+
+    # Ignore channel posts / anonymous messages
+    if not message.from_user:
+        return
+
+    user_id = message.from_user.id
+    private = message.chat.type == enums.ChatType.PRIVATE
+
+    # Delete /start command in groups
+    if not private:
+        try:
+            await message.delete()
+        except Exception:
+            pass
+
+    # ======================================================
+    # BLACKLIST CHECK
+    # ======================================================
+
+    if (
+        user_id in app.bl_users
+        and user_id not in db.notified
+    ):
+        return await message.reply_text(
+            message.lang["bl_user_notify"]
+        )
+
+    # ======================================================
+    # /start help
+    # ======================================================
+
+    if (
+        private
+        and len(message.command) > 1
+        and message.command[1].lower() == "help"
+    ):
+        return await _help(_, message)
+
+    # ======================================================
+    # WELCOME MESSAGE
+    # ======================================================
+
+    if private:
+        text = message.lang["start_pm"].format(
+            message.from_user.first_name,
+            config.BOT_NAME,
+        )
+    else:
+        text = message.lang["start_gp"].format(
+            config.BOT_NAME,
+        )
+
+    keyboard = buttons.start_key(
+        message.lang,
+        private,
+    )
+
+    # ======================================================
+    # SEND WELCOME MESSAGE
+    # ======================================================
+
+    try:
+        await message.reply_photo(
+            photo=config.START_IMG,
+            caption=text,
+            reply_markup=keyboard,
+            quote=not private,
+        )
+
+    except errors.ChatSendPhotosForbidden:
+        # Photo sending is not allowed
+        await message.reply_text(
+            text=text,
+            reply_markup=keyboard,
+            quote=not private,
+        )
+
+    except Exception:
+        # General fallback
+        try:
+            await message.reply_text(
+                text=text,
+                reply_markup=keyboard,
+                quote=not private,
+            )
+        except Exception:
+            pass
+
+    # ======================================================
+    # REGISTER PRIVATE USER
+    # ======================================================
+
+    if not private:
+        return
+
+    try:
+        # User already exists
+        if await db.is_user(user_id):
+            return
+
+        # Log new user
+        await utils.send_log(message)
+
+        # Add user to database
+        await db.add_user(user_id)
+
+    except Exception:
+        # Database/logging failure should not crash the bot
+        pass
+
+
+# ==========================================================
+# PLAYMODE / SETTINGS
+# ==========================================================
+
+@app.on_message(
+    filters.command(["playmode", "settings"])
+    & filters.group
+    & ~app.bl_users
+)
+@lang.language()
+async def settings(_, message: types.Message):
+    """Show group play-mode settings."""
+
+    # Delete command
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
+    # Get current play mode
+    admin_only = await db.get_play_mode(
+        message.chat.id
+    )
+
+    # Current/default language
+    language = "en"
+
     await utils.safe_text(
         message,
-        message.lang["start_settings"].format(message.chat.title),
+        message.lang["start_settings"].format(
+            message.chat.title
+        ),
         reply_markup=buttons.settings_markup(
-            message.lang, admin_only, _language, message.chat.id
+            message.lang,
+            admin_only,
+            language,
+            message.chat.id,
         ),
         quote=True,
     )
 
 
-@app.on_message(filters.new_chat_members, group=7)
+# ==========================================================
+# NEW CHAT MEMBER
+# ==========================================================
+
+@app.on_message(
+    filters.new_chat_members,
+    group=7,
+)
 @lang.language()
 async def _new_member(_, message: types.Message):
-    """
-    Handle new member events - detect when bot is added to groups.
+    """Handle the bot being added to a group."""
 
-    - Leaves non-supergroup chats
-    - Adds new groups to database
-    """
-    # Only work in supergroups (not basic groups)
+    # Only allow supergroups
     if message.chat.type != enums.ChatType.SUPERGROUP:
-        return await message.chat.leave()
+        try:
+            await message.chat.leave()
+        except Exception:
+            pass
+        return
 
-    # Check each new member
+    # Check all newly added members
     for member in message.new_chat_members:
-        if member.id == app.id:  # Bot itself was added
-            if await db.is_chat(message.chat.id):
-                return  # Chat already in database
-            # Add chat to database (log is sent from new_chat.py with photo)
-            await db.add_chat(message.chat.id)
+
+        # Ignore users; only process the bot itself
+        if member.id != app.id:
+            continue
+
+        # Check if group already exists
+        if await db.is_chat(message.chat.id):
+            return
+
+        # Add group to database
+        await db.add_chat(message.chat.id)
+
+        return
