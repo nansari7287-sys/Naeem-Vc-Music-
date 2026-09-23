@@ -43,15 +43,14 @@ async def _help(_, message: types.Message):
             photo=config.START_IMG,
             caption=message.lang["help_menu"],
             reply_markup=buttons.help_markup(message.lang),
-            quote=True,
         )
+
     except Exception:
         # Fallback to text if photo cannot be sent
         try:
             await message.reply_text(
                 text=message.lang["help_menu"],
                 reply_markup=buttons.help_markup(message.lang),
-                quote=True,
             )
         except Exception:
             pass
@@ -131,16 +130,17 @@ async def start(_, message: types.Message):
             photo=config.START_IMG,
             caption=text,
             reply_markup=keyboard,
-            quote=not private,
         )
 
     except errors.ChatSendPhotosForbidden:
         # Photo sending is not allowed
-        await message.reply_text(
-            text=text,
-            reply_markup=keyboard,
-            quote=not private,
-        )
+        try:
+            await message.reply_text(
+                text=text,
+                reply_markup=keyboard,
+            )
+        except Exception:
+            pass
 
     except Exception:
         # General fallback
@@ -148,7 +148,6 @@ async def start(_, message: types.Message):
             await message.reply_text(
                 text=text,
                 reply_markup=keyboard,
-                quote=not private,
             )
         except Exception:
             pass
@@ -214,7 +213,6 @@ async def settings(_, message: types.Message):
             language,
             message.chat.id,
         ),
-        quote=True,
     )
 
 
