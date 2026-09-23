@@ -1,4 +1,4 @@
-name: MAGMA Music API
+name: MAGMA Music
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 jobs:
-  run-api:
+  run-bot:
     runs-on: ubuntu-latest
     timeout-minutes: 350
 
@@ -30,381 +30,41 @@ jobs:
       # =========================
       # SYSTEM DEPENDENCIES
       # =========================
-      - name: Install System Dependencies
+      - name: Install Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg curl git unzip
+          sudo apt-get install -y ffmpeg git
 
       # =========================
-      # CHECK .ENV
+      # PYTHON DEPENDENCIES
+      # =========================
+      - name: Install Python Requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # =========================
+      # CHECK ENV
       # =========================
       - name: Check Environment
         run: |
-          set -e
-
           if [ ! -f .env ]; then
             echo "❌ .env file not found!"
-            echo "Make sure .env exists in the repository."
             exit 1
           fi
 
           echo "✅ .env found."
 
-          if ! grep -q '^NGROK_TOKEN=' .env; then
-            echo "❌ NGROK_TOKEN is missing from .env!"
-            exit 1
-          fi
-
-          echo "✅ NGROK_TOKEN found in .env."
-
       # =========================
-      # PYTHON DEPENDENCIES
+      # START MAGMA MUSIC
       # =========================
-      - name: Install Python Dependencies
+      - name: Start MagmaMusic
         run: |
-          python -m pip install --upgrade pip
-
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          fi
-
-          pip install fastapi uvicorn python-dotenv
-
-      # =========================
-      # INSTALL NGROK
-      # =========================
-      - name: Install Ngrok
-        run: |
-          set -e
-
-          curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
-            | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
-
-          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" \
-            | sudo tee /etc/apt/sources.list.d/ngrok.list
-
-          sudo apt-get update
-          sudo apt-get install -y ngrok
-
-          ngrok version
-
-      # =========================
-      # CONFIGURE NGROK FROM .ENV
-      # =========================
-      - name: Configure Ngrok
-        run: |
-          set -e
-
-          NGROK_TOKEN=$(grep '^NGROK_TOKEN=' .env | cut -d '=' -f2-)
-
-          # Remove possible quotes
-          NGROK_TOKEN="${NGROK_TOKEN%\"}"
-          NGROK_TOKEN="${NGROK_TOKEN#\"}"
-          NGROK_TOKEN="${NGROK_TOKEN%\'}"
-          NGROK_TOKEN="${NGROK_TOKEN#\'}"
-
-          if [ -z "$NGROK_TOKEN" ]; then
-            echo "❌ NGROK_TOKEN is empty!"
-            exit 1
-          fi
-
-          echo "Configuring Ngrok..."
-
-          ngrok config add-authtoken "$NGROK_TOKEN"
-
-          echo "✅ Ngrok configured successfully."
-
-      # =========================
-      # CHECK APP
-      # =========================
-      - name: Check Application
-        run: |
-          set -e
-
-          if [ ! -f app.py ]; then
-            echo "❌ app.py not found!"
-            exit 1
-          fi
-
-          echo "✅ app.py found."
-
-      # =========================
-      # READ PORT FROM .ENV
-      # =========================
-      - name: Detect API Port
-        run: |
-          APP_PORT=$(grep '^APP_PORT=' .env | cut -d '=' -f2-)
-
-          if [ -z "$APP_PORT" ]; then
-            APP_PORT=8000
-          fi
-
-          echo "APP_PORT=$APP_PORT" >> "$GITHUB_ENV"
-
-          echo "✅ API Port: $APP_PORT"
-
-      # =========================
-      # START FASTAPI
-      # =========================
-      - name: Start FastAPI
-        run: |
-          set -e
-
           echo "======================================"
-          echo "      STARTING MAGMA MUSIC API"
+          echo "        🚀 STARTING MAGMAMUSIC"
           echo "======================================"
 
-          nohup python app.py > api.log 2>&1 &
-
-          API_PID=$!
-
-          echo "$API_PID" > api.pid
-
-          echo "FastAPI PID: $API_PID"
-
-          sleep 10
-
-          if ! kill -0 "$API_PID" 2>/dev/null; then
-            echo "❌ FastAPI failed to start!"
-            echo ""
-            echo "========== API LOG =========="
-            cat api.log
-            exit 1
-          fi
-
-          echo "✅ FastAPI started successfully."
-
-      # =========================
-      # START NGROK
-      # =========================
-      - name: Start Ngrok
-        run: |
-          set -e
-
-          echo "======================================"
-          echo "          STARTING NGROK"
-          echo "======================================"
-
-          nohup ngrok http "$APP_PORT" \
-            --log=stdout \
-            > ngrok.log 2>&1 &
-
-          NGROK_PID=$!
-
-          echo "$NGROK_PID" > ngrok.pid
-
-          echo "Ngrok PID: $NGROK_PID"
-
-          sleep 8
-
-          if ! kill -0 "$NGROK_PID" 2>/dev/null; then
-            echo "❌ Ngrok failed to start!"
-            echo ""
-            echo "========== NGROK LOG =========="
-            cat ngrok.log
-            exit 1
-          fi
-
-          echo "✅ Ngrok started successfully."
-
-      # =========================
-      # GET NGROK PUBLIC URL
-      # =========================
-      - name: Get Ngrok Public URL
-        run: |
-          set -e
-
-          echo "Waiting for Ngrok tunnel..."
-
-          URL=""
-
-          for i in {1..30}; do
-
-            URL=$(curl -s \
-              http://127.0.0.1:4040/api/tunnels \
-              | python -c '
-          import sys
-          import json
-
-          try:
-              data = json.load(sys.stdin)
-
-              for tunnel in data.get("tunnels", []):
-                  url = tunnel.get("public_url", "")
-
-                  if url.startswith("https://"):
-                      print(url)
-                      break
-          except Exception:
-              pass
-          ')
-
-            if [ -n "$URL" ]; then
-              break
-            fi
-
-            echo "Waiting... ($i/30)"
-            sleep 2
-          done
-
-          if [ -z "$URL" ]; then
-            echo "❌ Failed to get Ngrok public URL."
-            echo ""
-            echo "========== NGROK LOG =========="
-            cat ngrok.log
-            exit 1
-          fi
-
-          echo ""
-          echo "======================================"
-          echo "       🌐 MAGMA MUSIC API"
-          echo "======================================"
-          echo ""
-          echo "$URL"
-          echo ""
-          echo "======================================"
-
-          echo "MAGMA_API_URL=$URL" >> "$GITHUB_ENV"
-
-      # =========================
-      # VERIFY LOCAL API
-      # =========================
-      - name: Verify API
-        run: |
-          echo "Checking local API..."
-
-          sleep 3
-
-          if curl -fsS \
-            "http://127.0.0.1:$APP_PORT/" \
-            >/dev/null 2>&1; then
-
-            echo "✅ MAGMA API is responding."
-
-          else
-
-            echo "⚠️ API root endpoint did not respond."
-
-            echo ""
-            echo "========== API LOG =========="
-
-            if [ -f api.log ]; then
-              cat api.log
-            fi
-
-          fi
-
-      # =========================
-      # VERIFY NGROK
-      # =========================
-      - name: Verify Ngrok
-        run: |
-          echo "Checking Ngrok..."
-
-          if curl -fsS \
-            http://127.0.0.1:4040/api/tunnels \
-            >/dev/null 2>&1; then
-
-            echo "✅ Ngrok tunnel is active."
-
-          else
-
-            echo "❌ Ngrok tunnel is not responding."
-
-            echo ""
-            echo "========== NGROK LOG =========="
-
-            cat ngrok.log
-
-            exit 1
-          fi
-
-      # =========================
-      # KEEP API RUNNING
-      # =========================
-      - name: Keep API Running
-        run: |
-          echo ""
-          echo "======================================"
-          echo "       🚀 MAGMA API IS RUNNING"
-          echo "======================================"
-          echo ""
-          echo "Public URL:"
-          echo "$MAGMA_API_URL"
-          echo ""
-          echo "Local Port:"
-          echo "$APP_PORT"
-          echo ""
-          echo "======================================"
-
-          START=$(date +%s)
-
-          while true; do
-
-            # -------------------------
-            # CHECK FASTAPI
-            # -------------------------
-            if [ -f api.pid ]; then
-
-              API_PID=$(cat api.pid)
-
-              if ! kill -0 "$API_PID" 2>/dev/null; then
-
-                echo "❌ FastAPI process stopped!"
-
-                echo ""
-                echo "========== API LOG =========="
-
-                cat api.log
-
-                exit 1
-              fi
-
-            else
-
-              echo "❌ api.pid not found!"
-              exit 1
-
-            fi
-
-            # -------------------------
-            # CHECK NGROK
-            # -------------------------
-            if [ -f ngrok.pid ]; then
-
-              NGROK_PID=$(cat ngrok.pid)
-
-              if ! kill -0 "$NGROK_PID" 2>/dev/null; then
-
-                echo "❌ Ngrok process stopped!"
-
-                echo ""
-                echo "========== NGROK LOG =========="
-
-                cat ngrok.log
-
-                exit 1
-              fi
-
-            else
-
-              echo "❌ ngrok.pid not found!"
-              exit 1
-
-            fi
-
-            # -------------------------
-            # STATUS
-            # -------------------------
-            NOW=$(date +%s)
-
-            ELAPSED=$((NOW - START))
-
-            echo "[$(date '+%Y-%m-%d %H:%M:%S')] FastAPI=OK | Ngrok=OK | Running=${ELAPSED}s"
-
-            sleep 60
-
-          done
+          python3 -m Anysnap
 
       # =========================
       # CLEANUP
@@ -412,32 +72,4 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-
-          echo "======================================"
-          echo "          CLEANUP"
-          echo "======================================"
-
-          if [ -f api.pid ]; then
-            kill "$(cat api.pid)" 2>/dev/null || true
-          fi
-
-          if [ -f ngrok.pid ]; then
-            kill "$(cat ngrok.pid)" 2>/dev/null || true
-          fi
-
-          echo ""
-          echo "========== FINAL API LOG =========="
-
-          if [ -f api.log ]; then
-            tail -100 api.log || true
-          fi
-
-          echo ""
-          echo "========== FINAL NGROK LOG =========="
-
-          if [ -f ngrok.log ]; then
-            tail -100 ngrok.log || true
-          fi
-
-          echo ""
-          echo "✅ Cleanup completed."
+          echo "MagmaMusic workflow finished."
