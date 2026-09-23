@@ -1,0 +1,322 @@
+name: MAGMA Music API
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  run-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+
+    steps:
+
+      # =========================
+      # CHECKOUT
+      # =========================
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # =========================
+      # SETUP PYTHON
+      # =========================
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # =========================
+      # SYSTEM DEPENDENCIES
+      # =========================
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg curl git unzip
+
+      # =========================
+      # INSTALL NGROK
+      # =========================
+      - name: Install Ngrok
+        run: |
+          curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+            | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" \
+            | sudo tee /etc/apt/sources.list.d/ngrok.list
+
+          sudo apt-get update
+          sudo apt-get install -y ngrok
+
+          ngrok version
+
+      # =========================
+      # PYTHON DEPENDENCIES
+      # =========================
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+
+          pip install fastapi uvicorn python-dotenv
+
+      # =========================
+      # CHECK .ENV
+      # =========================
+      - name: Check Environment
+        run: |
+          set -e
+
+          if [ ! -f .env ]; then
+            echo "❌ .env file not found!"
+            exit 1
+          fi
+
+          echo "✅ .env file found."
+
+      # =========================
+      # CONFIGURE NGROK
+      # =========================
+      - name: Configure Ngrok
+        run: |
+          set -e
+
+          NGROK_TOKEN=$(grep '^NGROK_TOKEN=' .env | cut -d '=' -f2-)
+
+          if [ -z "$NGROK_TOKEN" ]; then
+            echo "❌ NGROK_TOKEN not found in .env!"
+            exit 1
+          fi
+
+          ngrok config add-authtoken "$NGROK_TOKEN"
+
+          echo "✅ Ngrok configured."
+
+      # =========================
+      # CHECK APP
+      # =========================
+      - name: Check API
+        run: |
+          set -e
+
+          if [ ! -f app.py ]; then
+            echo "❌ app.py not found!"
+            exit 1
+          fi
+
+          echo "✅ app.py found."
+
+      # =========================
+      # START FASTAPI
+      # =========================
+      - name: Start FastAPI
+        run: |
+          set -e
+
+          echo "======================================"
+          echo "      STARTING MAGMA MUSIC API"
+          echo "======================================"
+
+          nohup python app.py > api.log 2>&1 &
+          API_PID=$!
+
+          echo "$API_PID" > api.pid
+
+          sleep 8
+
+          if ! kill -0 "$API_PID" 2>/dev/null; then
+            echo "❌ FastAPI failed to start!"
+            echo ""
+            echo "========== API LOG =========="
+            cat api.log
+            exit 1
+          fi
+
+          echo "✅ FastAPI started."
+          echo "PID: $API_PID"
+
+      # =========================
+      # START NGROK
+      # =========================
+      - name: Start Ngrok
+        run: |
+          set -e
+
+          APP_PORT=$(grep '^APP_PORT=' .env | cut -d '=' -f2-)
+
+          if [ -z "$APP_PORT" ]; then
+            APP_PORT=8000
+          fi
+
+          echo "Starting Ngrok on port: $APP_PORT"
+
+          nohup ngrok http "$APP_PORT" \
+            --log=stdout > ngrok.log 2>&1 &
+
+          NGROK_PID=$!
+
+          echo "$NGROK_PID" > ngrok.pid
+
+          sleep 5
+
+          if ! kill -0 "$NGROK_PID" 2>/dev/null; then
+            echo "❌ Ngrok failed to start!"
+            cat ngrok.log
+            exit 1
+          fi
+
+          echo "✅ Ngrok started."
+
+      # =========================
+      # GET PUBLIC URL
+      # =========================
+      - name: Get Public Ngrok URL
+        run: |
+          set -e
+
+          URL=""
+
+          for i in {1..20}; do
+
+            URL=$(curl -s http://127.0.0.1:4040/api/tunnels \
+              | python -c '
+          import sys
+          import json
+
+          try:
+              data = json.load(sys.stdin)
+              tunnels = data.get("tunnels", [])
+
+              for tunnel in tunnels:
+                  url = tunnel.get("public_url", "")
+                  if url.startswith("https://"):
+                      print(url)
+                      break
+              else:
+                  print("")
+          except Exception:
+              print("")
+          ')
+
+            if [ -n "$URL" ]; then
+              break
+            fi
+
+            echo "Waiting for Ngrok..."
+            sleep 2
+          done
+
+          if [ -z "$URL" ]; then
+            echo "❌ Could not obtain Ngrok URL."
+            cat ngrok.log
+            exit 1
+          fi
+
+          echo ""
+          echo "======================================"
+          echo "🌐 MAGMA API URL"
+          echo "$URL"
+          echo "======================================"
+
+      # =========================
+      # VERIFY API
+      # =========================
+      - name: Verify API
+        run: |
+          sleep 3
+
+          APP_PORT=$(grep '^APP_PORT=' .env | cut -d '=' -f2-)
+
+          if [ -z "$APP_PORT" ]; then
+            APP_PORT=8000
+          fi
+
+          if curl -fsS "http://127.0.0.1:$APP_PORT/" >/dev/null 2>&1; then
+            echo "✅ API is responding."
+          else
+            echo "⚠️ Root endpoint did not respond."
+            echo ""
+            echo "========== API LOG =========="
+            cat api.log
+          fi
+
+      # =========================
+      # KEEP API RUNNING
+      # =========================
+      - name: Keep API Running
+        run: |
+          echo "======================================"
+          echo "       MAGMA API IS RUNNING"
+          echo "======================================"
+
+          START=$(date +%s)
+
+          while true; do
+
+            if [ -f api.pid ]; then
+              API_PID=$(cat api.pid)
+
+              if ! kill -0 "$API_PID" 2>/dev/null; then
+                echo "❌ FastAPI process stopped!"
+                echo ""
+                echo "========== API LOG =========="
+                cat api.log
+                exit 1
+              fi
+            fi
+
+            if [ -f ngrok.pid ]; then
+              NGROK_PID=$(cat ngrok.pid)
+
+              if ! kill -0 "$NGROK_PID" 2>/dev/null; then
+                echo "❌ Ngrok process stopped!"
+                echo ""
+                echo "========== NGROK LOG =========="
+                cat ngrok.log
+                exit 1
+              fi
+            fi
+
+            NOW=$(date +%s)
+            ELAPSED=$((NOW - START))
+
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] FastAPI=OK | Ngrok=OK | Running=${ELAPSED}s"
+
+            sleep 60
+          done
+
+      # =========================
+      # CLEANUP
+      # =========================
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "Stopping services..."
+
+          if [ -f api.pid ]; then
+            kill "$(cat api.pid)" 2>/dev/null || true
+          fi
+
+          if [ -f ngrok.pid ]; then
+            kill "$(cat ngrok.pid)" 2>/dev/null || true
+          fi
+
+          echo ""
+          echo "========== FINAL API LOG =========="
+
+          if [ -f api.log ]; then
+            tail -100 api.log || true
+          fi
+
+          echo ""
+          echo "========== FINAL NGROK LOG =========="
+
+          if [ -f ngrok.log ]; then
+            tail -50 ngrok.log || true
+          fi
+
+          echo "✅ Cleanup completed."
